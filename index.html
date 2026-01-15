@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>LadeLog – EV Charging</title>
+  <style>
+    :root { --bg:#0b0c10; --card:#14161d; --muted:#9aa3b2; --txt:#e7eaf0; --acc:#4ea1ff; --bad:#ff6b6b; --ok:#3ddc97; }
+    *{ box-sizing:border-box; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
+    body{ margin:0; background:linear-gradient(180deg,#0b0c10, #0e1016); color:var(--txt); }
+    header{ padding:18px 16px 10px; position:sticky; top:0; background:rgba(11,12,16,.9); backdrop-filter: blur(10px); border-bottom:1px solid rgba(255,255,255,.06); }
+    h1{ margin:0; font-size:18px; letter-spacing:.2px; }
+    .sub{ margin-top:6px; color:var(--muted); font-size:12px; line-height:1.35; }
+    main{ padding:14px 16px 40px; max-width:980px; margin:0 auto; }
+    .grid{ display:grid; grid-template-columns: 1fr; gap:12px; }
+    @media (min-width: 860px){ .grid{ grid-template-columns: 1fr 1fr; } }
+    .card{ background:rgba(20,22,29,.92); border:1px solid rgba(255,255,255,.07); border-radius:16px; padding:14px; box-shadow:0 10px 25px rgba(0,0,0,.25); }
+    .card h2{ margin:0 0 10px; font-size:14px; color:#dfe6ff; }
+    label{ display:block; font-size:12px; color:var(--muted); margin:10px 0 6px; }
+    input, select, textarea{
+      width:100%; padding:10px 10px; border-radius:12px; border:1px solid rgba(255,255,255,.10);
+      background:#0f1117; color:var(--txt); outline:none;
+    }
+    input:focus, select:focus, textarea:focus{ border-color:rgba(78,161,255,.6); box-shadow:0 0 0 3px rgba(78,161,255,.12); }
+    .row{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    .row3{ display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; }
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    button{
+      padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.12);
+      background:#121523; color:var(--txt); cursor:pointer;
+    }
+    button.primary{ background:linear-gradient(180deg,#2b7cff,#1f63ff); border-color:rgba(78,161,255,.4); }
+    button.danger{ background:linear-gradient(180deg,#ff5a5a,#e43c3c); border-color:rgba(255,107,107,.35); }
+    button:disabled{ opacity:.55; cursor:not-allowed; }
+    .kpis{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media (min-width: 520px){ .kpis{ grid-template-columns: repeat(4, 1fr); } }
+    .kpi{ background:#0f1117; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:10px; }
+    .kpi .v{ font-size:16px; font-weight:650; margin-top:2px; }
+    .kpi .l{ font-size:11px; color:var(--muted); }
+    table{ width:100%; border-collapse:collapse; font-size:12px; }
+    th,td{ padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.07); vertical-align:top; }
+    th{ color:#cfd6ee; text-align:left; font-weight:650; }
+    td{ color:#e7eaf0; }
+    .muted{ color:var(--muted); }
+    .pill{ font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.12); display:inline-block; }
+    .pill.ok{ border-color: rgba(61,220,151,.35); color: var(--ok); }
+    .pill.bad{ border-color: rgba(255,107,107,.35); color: var(--bad); }
+    .right{ text-align:right; }
+    .small{ font-size:11px; color:var(--muted); line-height:1.35; }
+    .filters{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    @media (min-width: 860px){ .filters{ grid-template-columns: 1fr 1fr 1fr 1fr; } }
+    .toast{ position:fixed; bottom:18px; left:50%; transform:translateX(-50%); padding:10px 12px;
+      background:rgba(20,22,29,.95); border:1px solid rgba(255,255,255,.12); border-radius:12px; color:var(--txt);
+      box-shadow:0 12px 30px rgba(0,0,0,.35); display:none; z-index:9999; max-width:92vw;
+    }
+    a{ color: var(--acc); }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>⚡ LadeLog</h1>
+  <div class="sub">Erfassen • Auswerten • Exportieren (CSV für Excel/Numbers) • Import/Export (JSON via iCloud Drive)</div>
+</header>
+
+<main class="grid">
+  <section class="card">
+    <h2>Neuer Ladevorgang</h2>
+
+    <div class="row">
+      <div>
+        <label>Datum</label>
+        <input id="date" type="date" />
+      </div>
+      <div>
+        <label>Startzeit (optional)</label>
+        <input id="time" type="time" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Ort / Anbieter (z.B. Ionity, Zuhause, Aldi)</label>
+        <input id="provider" type="text" placeholder="z.B. Zuhause / Ionity / EnBW" />
+      </div>
+      <div>
+        <label>Charger-Typ</label>
+        <select id="chargerType">
+          <option value="AC">AC</option>
+          <option value="DC">DC</option>
+          <option value="HPC">HPC</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>kWh geladen</label>
+        <input id="kwh" inputmode="decimal" type="number" step="0.01" placeholder="z.B. 32.50" />
+      </div>
+      <div>
+        <label>Preis pro kWh (€)</label>
+        <input id="pricePerKwh" inputmode="decimal" type="number" step="0.001" placeholder="z.B. 0.49" />
+      </div>
+      <div>
+        <label>Fixkosten (€) (z.B. Startgebühr)</label>
+        <input id="fixedCost" inputmode="decimal" type="number" step="0.01" placeholder="0.00" />
+      </div>
+    </div>
+
+    <div class="row3">
+      <div>
+        <label>km-Stand (optional)</label>
+        <input id="odometer" inputmode="decimal" type="number" step="1" placeholder="z.B. 24500" />
+      </div>
+      <div>
+        <label>Strecke seit letztem Laden (km) (optional)</label>
+        <input id="kmSinceLast" inputmode="decimal" type="number" step="0.1" placeholder="z.B. 180.5" />
+      </div>
+      <div>
+        <label>Batterie % (optional)</label>
+        <input id="soc" inputmode="decimal" type="number" step="1" placeholder="z.B. 18 → 80" />
+      </div>
+    </div>
+
+    <label>Notiz (optional)</label>
+    <textarea id="note" rows="2" placeholder="z.B. kalt, viel Autobahn, Roaming, etc."></textarea>
+
+    <div class="btns">
+      <button class="primary" id="addBtn">Eintrag speichern</button>
+      <button id="clearFormBtn">Formular leeren</button>
+    </div>
+
+    <hr style="border:none;border-top:1px solid rgba(255,255,255,.08); margin:14px 0;">
+    <div class="small">
+      <div><span class="pill ok">Tipp</span> Für Excel-Export nutze <b>CSV Export</b>. Wenn du zwischen iPhone & Mac synchronisieren willst: <b>JSON Export</b> nach iCloud Drive und auf dem anderen Gerät <b>JSON Import</b>.</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Analyse</h2>
+
+    <div class="filters">
+      <div>
+        <label>Zeitraum: von</label>
+        <input id="fromDate" type="date" />
+      </div>
+      <div>
+        <label>Zeitraum: bis</label>
+        <input id="toDate" type="date" />
+      </div>
+      <div>
+        <label>Anbieter enthält</label>
+        <input id="providerFilter" type="text" placeholder="z.B. Zuhause" />
+      </div>
+      <div>
+        <label>Typ</label>
+        <select id="typeFilter">
+          <option value="">Alle</option>
+          <option value="AC">AC</option>
+          <option value="DC">DC</option>
+          <option value="HPC">HPC</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:10px" class="kpis">
+      <div class="kpi">
+        <div class="l">Einträge</div>
+        <div class="v" id="kpiCount">0</div>
+      </div>
+      <div class="kpi">
+        <div class="l">kWh gesamt</div>
+        <div class="v" id="kpiKwh">0</div>
+      </div>
+      <div class="kpi">
+        <div class="l">Kosten gesamt (€)</div>
+        <div class="v" id="kpiCost">0</div>
+      </div>
+      <div class="kpi">
+        <div class="l">Ø Preis/kWh (€)</div>
+        <div class="v" id="kpiAvg">0</div>
+      </div>
+    </div>
+
+    <div style="margin-top:10px" class="kpis">
+      <div class="kpi">
+        <div class="l">Min Preis/kWh (€)</div>
+        <div class="v" id="kpiMin">–</div>
+      </div>
+      <div class="kpi">
+        <div class="l">Max Preis/kWh (€)</div>
+        <div class="v" id="kpiMax">–</div>
+      </div>
+      <div class="kpi">
+        <div class="l">Ø kWh/Ladevorgang</div>
+        <div class="v" id="kpiAvgKwh">–</div>
+      </div>
+      <div class="kpi">
+        <div class="l">Ø Verbrauch (kWh/100km)*</div>
+        <div class="v" id="kpiCons">–</div>
+      </div>
+    </div>
+
+    <div class="small" style="margin-top:8px">
+      *Nur wenn du „Strecke seit letztem Laden (km)“ pflegst.
+    </div>
+
+    <div class="btns">
+      <button id="applyFilterBtn">Filter anwenden</button>
+      <button id="resetFilterBtn">Filter zurücksetzen</button>
+      <button id="exportCsvBtn">CSV Export (Excel)</button>
+      <button id="exportJsonBtn">JSON Export (Sync)</button>
+      <label style="display:inline-block; margin:0;">
+        <input id="importJsonInput" type="file" accept="application/json" style="display:none;">
+        <button id="importJsonBtn">JSON Import</button>
+      </label>
+    </div>
+  </section>
+
+  <section class="card" style="grid-column: 1 / -1;">
+    <h2>Einträge</h2>
+    <div class="small muted">Tippe auf „Bearbeiten“, um einen Eintrag zu ändern. „Löschen“ entfernt dauerhaft (nur lokal – du kannst vorher JSON exportieren).</div>
+    <div style="overflow:auto; margin-top:10px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Datum</th>
+            <th>Anbieter</th>
+            <th>Typ</th>
+            <th class="right">kWh</th>
+            <th class="right">€ / kWh</th>
+            <th class="right">Fix €</th>
+            <th class="right">Kosten €</th>
+            <th class="right">km</th>
+            <th class="right">kWh/100km</th>
+            <th>Notiz</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="toast" id="toast"></div>
+</main>
+
+<script>
+  const LS_KEY = "ladelog_v1_entries";
+
+  /** @type {Array<any>} */
+  let entries = loadEntries();
+
+  // Defaults
+  setTodayDefaults();
+
+  // UI refs
+  const el = (id) => document.getElementById(id);
+
+  const dateEl = el("date");
+  const timeEl = el("time");
+  const providerEl = el("provider");
+  const chargerTypeEl = el("chargerType");
+  const kwhEl = el("kwh");
+  const pricePerKwhEl = el("pricePerKwh");
+  const fixedCostEl = el("fixedCost");
+  const odometerEl = el("odometer");
+  const kmSinceLastEl = el("kmSinceLast");
+  const socEl = el("soc");
+  const noteEl = el("note");
+
+  const fromDateEl = el("fromDate");
+  const toDateEl = el("toDate");
+  const providerFilterEl = el("providerFilter");
+  const typeFilterEl = el("typeFilter");
+
+  const toastEl = el("toast");
+
+  // Buttons
+  el("addBtn").addEventListener("click", addEntry);
+  el("clearFormBtn").addEventListener("click", clearForm);
+
+  el("applyFilterBtn").addEventListener("click", render);
+  el("resetFilterBtn").addEventListener("click", () => { resetFilters(); render(); });
+
+  el("exportCsvBtn").addEventListener("click", exportCSV);
+  el("exportJsonBtn").addEventListener("click", exportJSON);
+  el("importJsonBtn").addEventListener("click", () => el("importJsonInput").click());
+  el("importJsonInput").addEventListener("change", importJSON);
+
+  // Initial render
+  render();
+
+  function setTodayDefaults(){
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth()+1).padStart(2,"0");
+    const dd = String(today.getDate()).padStart(2,"0");
+    const iso = `${yyyy}-${mm}-${dd}`;
+
+    if (el("date")) el("date").value = iso;
+    if (el("fromDate")) el("fromDate").value = "";
+    if (el("toDate")) el("toDate").value = "";
+  }
+
+  function loadEntries(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      if(!raw) return [];
+      const parsed = JSON.parse(raw);
+      if(!Array.isArray(parsed)) return [];
+      return parsed;
+    }catch(e){
+      console.warn(e);
+      return [];
+    }
+  }
+
+  function saveEntries(){
+    localStorage.setItem(LS_KEY, JSON.stringify(entries));
+  }
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.style.display = "block";
+    clearTimeout(toastEl._t);
+    toastEl._t = setTimeout(()=> toastEl.style.display="none", 2600);
+  }
+
+  function n(v){
+    const x = Number(v);
+    return Number.isFinite(x) ? x : 0;
+  }
+
+  function fmt(v, digits=2){
+    const x = Number(v);
+    if(!Number.isFinite(x)) return "–";
+    return x.toFixed(digits);
+  }
+
+  function addEntry(){
+    const date = dateEl.value?.trim();
+    if(!date){ toast("Bitte Datum wählen."); return; }
+
+    const kwh = n(kwhEl.value);
+    if(kwh <= 0){ toast("Bitte kWh > 0 eingeben."); return; }
+
+    const pricePerKwh = n(pricePerKwhEl.value);
+    const fixedCost = n(fixedCostEl.value);
+    const provider = providerEl.value?.trim() || "";
+    const chargerType = chargerTypeEl.value || "AC";
+
+    const kmSinceLast = n(kmSinceLastEl.value);
+    const odometer = n(odometerEl.value);
+    const soc = socEl.value?.trim() || "";
+    const note = noteEl.value?.trim() || "";
+
+    const cost = (kwh * pricePerKwh) + fixedCost;
+
+    const entry = {
+      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2),
+      date,
+      time: timeEl.value?.trim() || "",
+      provider,
+      chargerType,
+      kwh,
+      pricePerKwh,
+      fixedCost,
+      cost,
+      odometer: odometer || "",
+      kmSinceLast: kmSinceLast || "",
+      soc,
+      note,
+      createdAt: new Date().toISOString()
+    };
+
+    entries.unshift(entry);
+    saveEntries();
+    clearForm(false);
+    toast("Gespeichert ✅");
+    render();
+  }
+
+  function clearForm(withToast=true){
+    timeEl.value = "";
+    providerEl.value = "";
+    chargerTypeEl.value = "AC";
+    kwhEl.value = "";
+    pricePerKwhEl.value = "";
+    fixedCostEl.value = "";
+    odometerEl.value = "";
+    kmSinceLastEl.value = "";
+    socEl.value = "";
+    noteEl.value = "";
+    if(withToast) toast("Formular geleert.");
+  }
+
+  function resetFilters(){
+    fromDateEl.value = "";
+    toDateEl.value = "";
+    providerFilterEl.value = "";
+    typeFilterEl.value = "";
+  }
+
+  function getFiltered(){
+    const from = fromDateEl.value ? new Date(fromDateEl.value + "T00:00:00") : null;
+    const to = toDateEl.value ? new Date(toDateEl.value + "T23:59:59") : null;
+    const p = providerFilterEl.value?.trim().toLowerCase() || "";
+    const t = typeFilterEl.value || "";
+
+    return entries.filter(e=>{
+      const d = new Date((e.date || "") + "T12:00:00");
+      if(from && d < from) return false;
+      if(to && d > to) return false;
+      if(t && e.chargerType !== t) return false;
+      if(p && String(e.provider||"").toLowerCase().indexOf(p) === -1) return false;
+      return true;
+    });
+  }
+
+  function consumptionPer100km(entry){
+    const km = n(entry.kmSinceLast);
+    const kwh = n(entry.kwh);
+    if(km > 0 && kwh > 0) return (kwh / km) * 100;
+    return null;
+  }
+
+  function render(){
+    const data = getFiltered();
+
+    // KPIs
+    const count = data.length;
+    const sumKwh = data.reduce((a,e)=> a + n(e.kwh), 0);
+    const sumCost = data.reduce((a,e)=> a + n(e.cost), 0);
+
+    const kwhForAvgPrice = data.reduce((a,e)=> a + (n(e.kwh) > 0 ? n(e.kwh) : 0), 0);
+    const avgPrice = kwhForAvgPrice > 0 ? (data.reduce((a,e)=> a + (n(e.kwh)*n(e.pricePerKwh)), 0) / kwhForAvgPrice) : null;
+
+    const prices = data.map(e=> n(e.pricePerKwh)).filter(x=> x>0);
+    const minP = prices.length ? Math.min(...prices) : null;
+    const maxP = prices.length ? Math.max(...prices) : null;
+
+    const avgKwh = count ? (sumKwh / count) : null;
+
+    const consVals = data.map(consumptionPer100km).filter(v=> v!==null);
+    const avgCons = consVals.length ? (consVals.reduce((a,v)=>a+v,0) / consVals.length) : null;
+
+    el("kpiCount").textContent = String(count);
+    el("kpiKwh").textContent = fmt(sumKwh, 2);
+    el("kpiCost").textContent = fmt(sumCost, 2);
+    el("kpiAvg").textContent = avgPrice===null ? "–" : fmt(avgPrice, 3);
+
+    el("kpiMin").textContent = minP===null ? "–" : fmt(minP, 3);
+    el("kpiMax").textContent = maxP===null ? "–" : fmt(maxP, 3);
+    el("kpiAvgKwh").textContent = avgKwh===null ? "–" : fmt(avgKwh, 2);
+    el("kpiCons").textContent = avgCons===null ? "–" : fmt(avgCons, 1);
+
+    // Rows
+    const tbody = el("rows");
+    tbody.innerHTML = "";
+    for(const e of data){
+      const tr = document.createElement("tr");
+      const cons = consumptionPer100km(e);
+
+      tr.innerHTML = `
+        <td>
+          <div>${escapeHtml(e.date || "")}${e.time ? " " + escapeHtml(e.time) : ""}</div>
+          <div class="small muted mono">${escapeHtml(shortId(e.id))}</div>
+        </td>
+        <td>${escapeHtml(e.provider || "")}</td>
+        <td><span class="pill ${e.chargerType==="AC" ? "ok" : ""}">${escapeHtml(e.chargerType || "")}</span></td>
+        <td class="right">${fmt(e.kwh, 2)}</td>
+        <td class="right">${e.pricePerKwh ? fmt(e.pricePerKwh, 3) : "–"}</td>
+        <td class="right">${e.fixedCost ? fmt(e.fixedCost, 2) : "–"}</td>
+        <td class="right">${fmt(e.cost, 2)}</td>
+        <td class="right">${e.kmSinceLast ? fmt(e.kmSinceLast, 1) : "–"}</td>
+        <td class="right">${cons===null ? "–" : fmt(cons, 1)}</td>
+        <td>${escapeHtml(e.note || "")}</td>
+        <td class="right">
+          <button data-act="edit" data-id="${e.id}">Bearbeiten</button>
+          <button class="danger" data-act="del" data-id="${e.id}">Löschen</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    tbody.querySelectorAll("button").forEach(btn=>{
+      btn.addEventListener("click", (ev)=>{
+        const id = ev.currentTarget.getAttribute("data-id");
+        const act = ev.currentTarget.getAttribute("data-act");
+        if(act==="del") delEntry(id);
+        if(act==="edit") editEntry(id);
+      });
+    });
+  }
+
+  function shortId(id){
+    if(!id) return "";
+    return String(id).slice(0,8);
+  }
+
+  function delEntry(id){
+    const idx = entries.findIndex(e=> e.id===id);
+    if(idx < 0) return;
+    const ok = confirm("Eintrag wirklich löschen?");
+    if(!ok) return;
+    entries.splice(idx,1);
+    saveEntries();
+    toast("Gelöscht.");
+    render();
+  }
+
+  function editEntry(id){
+    const e = entries.find(x=> x.id===id);
+    if(!e) return;
+
+    // Simple edit via prompt (schnell & robust). Wenn du willst, baue ich dir als nächsten Schritt ein schönes Edit-Modal.
+    const kwh = prompt("kWh geladen:", e.kwh);
+    if(kwh===null) return;
+    const ppk = prompt("Preis pro kWh (€):", e.pricePerKwh);
+    if(ppk===null) return;
+    const fix = prompt("Fixkosten (€):", e.fixedCost);
+    if(fix===null) return;
+    const provider = prompt("Anbieter / Ort:", e.provider);
+    if(provider===null) return;
+    const note = prompt("Notiz:", e.note || "");
+    if(note===null) return;
+
+    e.kwh = n(kwh);
+    e.pricePerKwh = n(ppk);
+    e.fixedCost = n(fix);
+    e.provider = String(provider||"").trim();
+    e.note = String(note||"").trim();
+    e.cost = (n(e.kwh)*n(e.pricePerKwh)) + n(e.fixedCost);
+
+    saveEntries();
+    toast("Aktualisiert ✅");
+    render();
+  }
+
+  function exportCSV(){
+    const data = getFiltered();
+    if(!data.length){ toast("Keine Daten zum Export."); return; }
+
+    const headers = [
+      "date","time","provider","chargerType","kwh","pricePerKwh","fixedCost","cost","odometer","kmSinceLast","kwhPer100km","soc","note","createdAt","id"
+    ];
+
+    const rows = data.map(e=>{
+      const cons = consumptionPer100km(e);
+      const obj = {
+        date: e.date||"",
+        time: e.time||"",
+        provider: e.provider||"",
+        chargerType: e.chargerType||"",
+        kwh: numOrEmpty(e.kwh),
+        pricePerKwh: numOrEmpty(e.pricePerKwh),
+        fixedCost: numOrEmpty(e.fixedCost),
+        cost: numOrEmpty(e.cost),
+        odometer: e.odometer||"",
+        kmSinceLast: e.kmSinceLast||"",
+        kwhPer100km: cons===null ? "" : cons,
+        soc: e.soc||"",
+        note: e.note||"",
+        createdAt: e.createdAt||"",
+        id: e.id||""
+      };
+      return headers.map(h=> csvEscape(obj[h]));
+    });
+
+    const csv = [headers.join(";"), ...rows.map(r=> r.join(";"))].join("\n");
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    const filename = fileName("LadeLog", "csv");
+    downloadBlob(blob, filename);
+    toast("CSV exportiert.");
+  }
+
+  function exportJSON(){
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      entries
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+    const filename = fileName("LadeLog-Sync", "json");
+    downloadBlob(blob, filename);
+    toast("JSON exportiert (für Sync).");
+  }
+
+  async function importJSON(ev){
+    const file = ev?.target?.files?.[0];
+    if(!file){ return; }
+    try{
+      const text = await file.text();
+      const obj = JSON.parse(text);
+
+      // Accept either {entries:[...]} or plain array
+      let imported = [];
+      if(Array.isArray(obj)) imported = obj;
+      else if(obj && Array.isArray(obj.entries)) imported = obj.entries;
+
+      if(!Array.isArray(imported)) throw new Error("Ungültiges Format.");
+
+      // Merge by id (import wins)
+      const map = new Map(entries.map(e=> [e.id, e]));
+      for(const e of imported){
+        if(!e || !e.id) continue;
+        map.set(e.id, e);
+      }
+      entries = Array.from(map.values()).sort((a,b)=> (b.date||"").localeCompare(a.date||"") || (b.createdAt||"").localeCompare(a.createdAt||""));
+      saveEntries();
+      toast(`Import ok: ${imported.length} Einträge verarbeitet.`);
+      render();
+    }catch(err){
+      console.error(err);
+      alert("Import fehlgeschlagen: " + (err.message || err));
+    }finally{
+      ev.target.value = "";
+    }
+  }
+
+  function downloadBlob(blob, filename){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=> URL.revokeObjectURL(url), 1000);
+  }
+
+  function fileName(base, ext){
+    const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,"0");
+    const dd = String(d.getDate()).padStart(2,"0");
+    return `${base}_${yyyy}-${mm}-${dd}.${ext}`;
+  }
+
+  function csvEscape(v){
+    const s = String(v ?? "");
+    // Use semicolon delimiter; still quote if needed
+    if(/[;"\n\r]/.test(s)){
+      return `"${s.replace(/"/g,'""')}"`;
+    }
+    return s;
+  }
+  function numOrEmpty(v){
+    const x = Number(v);
+    return Number.isFinite(x) && x!==0 ? x : (x===0 ? 0 : "");
+  }
+  function escapeHtml(str){
+    return String(str ?? "")
+      .replace(/&/g,"&amp;")
+      .replace(/</g,"&lt;")
+      .replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;")
+      .replace(/'/g,"&#039;");
+  }
+</script>
+</body>
+</html>
