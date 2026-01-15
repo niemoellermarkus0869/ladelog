@@ -1,13 +1,14 @@
 <!doctype html>
 <html lang="de">
 <head>
-  <link rel="apple-touch-icon" href="icon-512.png">
-  <link rel="icon" type="image/png" href="icon-512.png">
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <title>LadeLog – EV Charging</title>
+  <link rel="apple-touch-icon" href="icon-512.png">
+  <link rel="icon" type="image/png" href="icon-512.png">
+
   <style>
     :root { --bg:#0b0c10; --card:#14161d; --muted:#9aa3b2; --txt:#e7eaf0; --acc:#4ea1ff; --bad:#ff6b6b; --ok:#3ddc97; }
     *{ box-sizing:border-box; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif; }
@@ -45,10 +46,8 @@
     th,td{ padding:8px 6px; border-bottom:1px solid rgba(255,255,255,.07); vertical-align:top; }
     th{ color:#cfd6ee; text-align:left; font-weight:650; }
     td{ color:#e7eaf0; }
-    .muted{ color:var(--muted); }
     .pill{ font-size:11px; padding:3px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.12); display:inline-block; }
     .pill.ok{ border-color: rgba(61,220,151,.35); color: var(--ok); }
-    .pill.bad{ border-color: rgba(255,107,107,.35); color: var(--bad); }
     .right{ text-align:right; }
     .small{ font-size:11px; color:var(--muted); line-height:1.35; }
     .filters{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
@@ -57,14 +56,15 @@
       background:rgba(20,22,29,.95); border:1px solid rgba(255,255,255,.12); border-radius:12px; color:var(--txt);
       box-shadow:0 12px 30px rgba(0,0,0,.35); display:none; z-index:9999; max-width:92vw;
     }
-    a{ color: var(--acc); }
     .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+    .statusline{ margin-top:8px; font-size:12px; color:var(--muted); }
+    .statusline b{ color: var(--txt); }
   </style>
 </head>
 <body>
 <header>
   <h1>⚡ LadeLog</h1>
-  <div class="sub">Erfassen • Auswerten • Exportieren (CSV für Excel/Numbers) • Import/Export (JSON via iCloud Drive)</div>
+  <div class="sub">Erfassen • Auswerten • Exportieren (CSV für Excel/Numbers) • Import/Export (JSON via Datei)</div>
 </header>
 
 <main class="grid">
@@ -123,7 +123,7 @@
       </div>
       <div>
         <label>Batterie % (optional)</label>
-        <input id="soc" inputmode="decimal" type="number" step="1" placeholder="z.B. 18 → 80" />
+        <input id="soc" inputmode="decimal" type="text" placeholder="z.B. 18 → 80" />
       </div>
     </div>
 
@@ -135,10 +135,7 @@
       <button id="clearFormBtn">Formular leeren</button>
     </div>
 
-    <hr style="border:none;border-top:1px solid rgba(255,255,255,.08); margin:14px 0;">
-    <div class="small">
-      <div><span class="pill ok">Tipp</span> Für Excel-Export nutze <b>CSV Export</b>. Wenn du zwischen iPhone & Mac synchronisieren willst: <b>JSON Export</b> nach iCloud Drive und auf dem anderen Gerät <b>JSON Import</b>.</div>
-    </div>
+    <div class="statusline" id="dbStatus">Speicher: <b>initialisiere…</b></div>
   </section>
 
   <section class="card">
@@ -169,52 +166,26 @@
     </div>
 
     <div style="margin-top:10px" class="kpis">
-      <div class="kpi">
-        <div class="l">Einträge</div>
-        <div class="v" id="kpiCount">0</div>
-      </div>
-      <div class="kpi">
-        <div class="l">kWh gesamt</div>
-        <div class="v" id="kpiKwh">0</div>
-      </div>
-      <div class="kpi">
-        <div class="l">Kosten gesamt (€)</div>
-        <div class="v" id="kpiCost">0</div>
-      </div>
-      <div class="kpi">
-        <div class="l">Ø Preis/kWh (€)</div>
-        <div class="v" id="kpiAvg">0</div>
-      </div>
+      <div class="kpi"><div class="l">Einträge</div><div class="v" id="kpiCount">0</div></div>
+      <div class="kpi"><div class="l">kWh gesamt</div><div class="v" id="kpiKwh">0</div></div>
+      <div class="kpi"><div class="l">Kosten gesamt (€)</div><div class="v" id="kpiCost">0</div></div>
+      <div class="kpi"><div class="l">Ø Preis/kWh (€)</div><div class="v" id="kpiAvg">0</div></div>
     </div>
 
     <div style="margin-top:10px" class="kpis">
-      <div class="kpi">
-        <div class="l">Min Preis/kWh (€)</div>
-        <div class="v" id="kpiMin">–</div>
-      </div>
-      <div class="kpi">
-        <div class="l">Max Preis/kWh (€)</div>
-        <div class="v" id="kpiMax">–</div>
-      </div>
-      <div class="kpi">
-        <div class="l">Ø kWh/Ladevorgang</div>
-        <div class="v" id="kpiAvgKwh">–</div>
-      </div>
-      <div class="kpi">
-        <div class="l">Ø Verbrauch (kWh/100km)*</div>
-        <div class="v" id="kpiCons">–</div>
-      </div>
+      <div class="kpi"><div class="l">Min Preis/kWh (€)</div><div class="v" id="kpiMin">–</div></div>
+      <div class="kpi"><div class="l">Max Preis/kWh (€)</div><div class="v" id="kpiMax">–</div></div>
+      <div class="kpi"><div class="l">Ø kWh/Ladevorgang</div><div class="v" id="kpiAvgKwh">–</div></div>
+      <div class="kpi"><div class="l">Ø Verbrauch (kWh/100km)*</div><div class="v" id="kpiCons">–</div></div>
     </div>
 
-    <div class="small" style="margin-top:8px">
-      *Nur wenn du „Strecke seit letztem Laden (km)“ pflegst.
-    </div>
+    <div class="small" style="margin-top:8px">*Nur wenn du „Strecke seit letztem Laden (km)“ pflegst.</div>
 
     <div class="btns">
       <button id="applyFilterBtn">Filter anwenden</button>
       <button id="resetFilterBtn">Filter zurücksetzen</button>
       <button id="exportCsvBtn">CSV Export (Excel)</button>
-      <button id="exportJsonBtn">JSON Export (Sync)</button>
+      <button id="exportJsonBtn">JSON Export (Backup/Sync)</button>
       <label style="display:inline-block; margin:0;">
         <input id="importJsonInput" type="file" accept="application/json" style="display:none;">
         <button id="importJsonBtn">JSON Import</button>
@@ -224,7 +195,7 @@
 
   <section class="card" style="grid-column: 1 / -1;">
     <h2>Einträge</h2>
-    <div class="small muted">Tippe auf „Bearbeiten“, um einen Eintrag zu ändern. „Löschen“ entfernt dauerhaft (nur lokal – du kannst vorher JSON exportieren).</div>
+    <div class="small" style="color:var(--muted);">Tipp: Wenn du iOS-Cache-Probleme hast, exportiere einmal JSON als Backup.</div>
     <div style="overflow:auto; margin-top:10px;">
       <table>
         <thead>
@@ -251,418 +222,572 @@
 </main>
 
 <script>
-  const LS_KEY = "ladelog_v1_entries";
+/* ===========================
+   IndexedDB Storage Layer
+   =========================== */
 
-  /** @type {Array<any>} */
-  let entries = loadEntries();
+const DB_NAME = "ladelog_db";
+const DB_VERSION = 1;
+const STORE = "entries";
+const LEGACY_LS_KEY = "ladelog_v1_entries"; // migration source
 
-  // Defaults
-  setTodayDefaults();
+let db = null;
 
-  // UI refs
-  const el = (id) => document.getElementById(id);
-
-  const dateEl = el("date");
-  const timeEl = el("time");
-  const providerEl = el("provider");
-  const chargerTypeEl = el("chargerType");
-  const kwhEl = el("kwh");
-  const pricePerKwhEl = el("pricePerKwh");
-  const fixedCostEl = el("fixedCost");
-  const odometerEl = el("odometer");
-  const kmSinceLastEl = el("kmSinceLast");
-  const socEl = el("soc");
-  const noteEl = el("note");
-
-  const fromDateEl = el("fromDate");
-  const toDateEl = el("toDate");
-  const providerFilterEl = el("providerFilter");
-  const typeFilterEl = el("typeFilter");
-
-  const toastEl = el("toast");
-
-  // Buttons
-  el("addBtn").addEventListener("click", addEntry);
-  el("clearFormBtn").addEventListener("click", clearForm);
-
-  el("applyFilterBtn").addEventListener("click", render);
-  el("resetFilterBtn").addEventListener("click", () => { resetFilters(); render(); });
-
-  el("exportCsvBtn").addEventListener("click", exportCSV);
-  el("exportJsonBtn").addEventListener("click", exportJSON);
-  el("importJsonBtn").addEventListener("click", () => el("importJsonInput").click());
-  el("importJsonInput").addEventListener("change", importJSON);
-
-  // Initial render
-  render();
-
-  function setTodayDefaults(){
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth()+1).padStart(2,"0");
-    const dd = String(today.getDate()).padStart(2,"0");
-    const iso = `${yyyy}-${mm}-${dd}`;
-
-    if (el("date")) el("date").value = iso;
-    if (el("fromDate")) el("fromDate").value = "";
-    if (el("toDate")) el("toDate").value = "";
-  }
-
-  function loadEntries(){
-    try{
-      const raw = localStorage.getItem(LS_KEY);
-      if(!raw) return [];
-      const parsed = JSON.parse(raw);
-      if(!Array.isArray(parsed)) return [];
-      return parsed;
-    }catch(e){
-      console.warn(e);
-      return [];
+/** Open DB and ensure store exists */
+function openDb(){
+  return new Promise((resolve, reject) => {
+    if(!("indexedDB" in window)){
+      reject(new Error("IndexedDB wird von diesem Browser nicht unterstützt."));
+      return;
     }
-  }
-
-  function saveEntries(){
-    localStorage.setItem(LS_KEY, JSON.stringify(entries));
-  }
-
-  function toast(msg){
-    toastEl.textContent = msg;
-    toastEl.style.display = "block";
-    clearTimeout(toastEl._t);
-    toastEl._t = setTimeout(()=> toastEl.style.display="none", 2600);
-  }
-
-  function n(v){
-    const x = Number(v);
-    return Number.isFinite(x) ? x : 0;
-  }
-
-  function fmt(v, digits=2){
-    const x = Number(v);
-    if(!Number.isFinite(x)) return "–";
-    return x.toFixed(digits);
-  }
-
-  function addEntry(){
-    const date = dateEl.value?.trim();
-    if(!date){ toast("Bitte Datum wählen."); return; }
-
-    const kwh = n(kwhEl.value);
-    if(kwh <= 0){ toast("Bitte kWh > 0 eingeben."); return; }
-
-    const pricePerKwh = n(pricePerKwhEl.value);
-    const fixedCost = n(fixedCostEl.value);
-    const provider = providerEl.value?.trim() || "";
-    const chargerType = chargerTypeEl.value || "AC";
-
-    const kmSinceLast = n(kmSinceLastEl.value);
-    const odometer = n(odometerEl.value);
-    const soc = socEl.value?.trim() || "";
-    const note = noteEl.value?.trim() || "";
-
-    const cost = (kwh * pricePerKwh) + fixedCost;
-
-    const entry = {
-      id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2),
-      date,
-      time: timeEl.value?.trim() || "",
-      provider,
-      chargerType,
-      kwh,
-      pricePerKwh,
-      fixedCost,
-      cost,
-      odometer: odometer || "",
-      kmSinceLast: kmSinceLast || "",
-      soc,
-      note,
-      createdAt: new Date().toISOString()
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (ev) => {
+      const db = req.result;
+      if(!db.objectStoreNames.contains(STORE)){
+        const store = db.createObjectStore(STORE, { keyPath: "id" });
+        store.createIndex("by_date", "date", { unique:false });
+        store.createIndex("by_createdAt", "createdAt", { unique:false });
+      }
     };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error("DB open error"));
+  });
+}
 
-    entries.unshift(entry);
-    saveEntries();
+function txStore(mode="readonly"){
+  const tx = db.transaction(STORE, mode);
+  return tx.objectStore(STORE);
+}
+
+function idbGetAll(){
+  return new Promise((resolve, reject) => {
+    const store = txStore("readonly");
+    const req = store.getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error || new Error("getAll error"));
+  });
+}
+
+function idbPut(entry){
+  return new Promise((resolve, reject) => {
+    const store = txStore("readwrite");
+    const req = store.put(entry);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error || new Error("put error"));
+  });
+}
+
+function idbDelete(id){
+  return new Promise((resolve, reject) => {
+    const store = txStore("readwrite");
+    const req = store.delete(id);
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error || new Error("delete error"));
+  });
+}
+
+async function idbReplaceAll(newEntries){
+  // Clear and re-add
+  await new Promise((resolve, reject) => {
+    const store = txStore("readwrite");
+    const req = store.clear();
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(req.error || new Error("clear error"));
+  });
+  for(const e of newEntries){
+    await idbPut(e);
+  }
+}
+
+/** One-time migration from localStorage if present */
+async function migrateFromLocalStorageIfNeeded(){
+  try{
+    const legacy = localStorage.getItem(LEGACY_LS_KEY);
+    if(!legacy) return { migrated:false, count:0 };
+    const arr = JSON.parse(legacy);
+    if(!Array.isArray(arr) || arr.length===0) return { migrated:false, count:0 };
+
+    // If DB already has entries, don't auto-overwrite; just keep DB.
+    const existing = await idbGetAll();
+    if(existing.length > 0) return { migrated:false, count:0 };
+
+    // Ensure ids exist & normalize
+    const normalized = arr.map(e => ({
+      id: e.id || (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2)),
+      date: e.date || "",
+      time: e.time || "",
+      provider: e.provider || "",
+      chargerType: e.chargerType || "AC",
+      kwh: num(e.kwh),
+      pricePerKwh: num(e.pricePerKwh),
+      fixedCost: num(e.fixedCost),
+      cost: num(e.cost) || (num(e.kwh)*num(e.pricePerKwh) + num(e.fixedCost)),
+      odometer: e.odometer || "",
+      kmSinceLast: e.kmSinceLast || "",
+      soc: e.soc || "",
+      note: e.note || "",
+      createdAt: e.createdAt || new Date().toISOString()
+    }));
+
+    await idbReplaceAll(normalized);
+
+    // Optional: keep legacy as backup, but we can remove to avoid confusion
+    // localStorage.removeItem(LEGACY_LS_KEY);
+
+    return { migrated:true, count: normalized.length };
+  }catch(_){
+    return { migrated:false, count:0 };
+  }
+}
+
+/* ===========================
+   App Logic
+   =========================== */
+
+const el = (id) => document.getElementById(id);
+const toastEl = el("toast");
+const dbStatusEl = el("dbStatus");
+
+let entries = []; // in-memory cache
+
+// UI refs
+const dateEl = el("date");
+const timeEl = el("time");
+const providerEl = el("provider");
+const chargerTypeEl = el("chargerType");
+const kwhEl = el("kwh");
+const pricePerKwhEl = el("pricePerKwh");
+const fixedCostEl = el("fixedCost");
+const odometerEl = el("odometer");
+const kmSinceLastEl = el("kmSinceLast");
+const socEl = el("soc");
+const noteEl = el("note");
+
+const fromDateEl = el("fromDate");
+const toDateEl = el("toDate");
+const providerFilterEl = el("providerFilter");
+const typeFilterEl = el("typeFilter");
+
+// Buttons
+el("addBtn").addEventListener("click", addEntry);
+el("clearFormBtn").addEventListener("click", () => clearForm(true));
+el("applyFilterBtn").addEventListener("click", render);
+el("resetFilterBtn").addEventListener("click", () => { resetFilters(); render(); });
+
+el("exportCsvBtn").addEventListener("click", exportCSV);
+el("exportJsonBtn").addEventListener("click", exportJSON);
+el("importJsonBtn").addEventListener("click", () => el("importJsonInput").click());
+el("importJsonInput").addEventListener("change", importJSON);
+
+// Init
+setTodayDefaults();
+boot();
+
+async function boot(){
+  try{
+    dbStatus("initialisiere…");
+    db = await openDb();
+    const mig = await migrateFromLocalStorageIfNeeded();
+    await reloadEntries();
+    dbStatus(mig.migrated ? `IndexedDB aktiv ✅ (Migration: ${mig.count} Einträge)` : "IndexedDB aktiv ✅");
+    render();
+  }catch(err){
+    console.error(err);
+    dbStatus("Speicherfehler ❌");
+    alert("Speicher konnte nicht initialisiert werden: " + (err?.message || err));
+  }
+}
+
+function dbStatus(msg){
+  dbStatusEl.innerHTML = `Speicher: <b>${escapeHtml(msg)}</b>`;
+}
+
+function setTodayDefaults(){
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth()+1).padStart(2,"0");
+  const dd = String(today.getDate()).padStart(2,"0");
+  dateEl.value = `${yyyy}-${mm}-${dd}`;
+}
+
+async function reloadEntries(){
+  const all = await idbGetAll();
+  // newest first by date then createdAt
+  entries = all.sort((a,b)=>
+    (String(b.date||"").localeCompare(String(a.date||"")) ||
+     String(b.createdAt||"").localeCompare(String(a.createdAt||"")))
+  );
+}
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.style.display = "block";
+  clearTimeout(toastEl._t);
+  toastEl._t = setTimeout(()=> toastEl.style.display="none", 2600);
+}
+
+function num(v){
+  const x = Number(v);
+  return Number.isFinite(x) ? x : 0;
+}
+
+function fmt(v, digits=2){
+  const x = Number(v);
+  if(!Number.isFinite(x)) return "–";
+  return x.toFixed(digits);
+}
+
+function resetFilters(){
+  fromDateEl.value = "";
+  toDateEl.value = "";
+  providerFilterEl.value = "";
+  typeFilterEl.value = "";
+}
+
+function getFiltered(){
+  const from = fromDateEl.value ? new Date(fromDateEl.value + "T00:00:00") : null;
+  const to = toDateEl.value ? new Date(toDateEl.value + "T23:59:59") : null;
+  const p = providerFilterEl.value?.trim().toLowerCase() || "";
+  const t = typeFilterEl.value || "";
+
+  return entries.filter(e=>{
+    const d = new Date((e.date || "") + "T12:00:00");
+    if(from && d < from) return false;
+    if(to && d > to) return false;
+    if(t && e.chargerType !== t) return false;
+    if(p && String(e.provider||"").toLowerCase().indexOf(p) === -1) return false;
+    return true;
+  });
+}
+
+function consumptionPer100km(entry){
+  const km = num(entry.kmSinceLast);
+  const kwh = num(entry.kwh);
+  if(km > 0 && kwh > 0) return (kwh / km) * 100;
+  return null;
+}
+
+function clearForm(withToast){
+  timeEl.value = "";
+  providerEl.value = "";
+  chargerTypeEl.value = "AC";
+  kwhEl.value = "";
+  pricePerKwhEl.value = "";
+  fixedCostEl.value = "";
+  odometerEl.value = "";
+  kmSinceLastEl.value = "";
+  socEl.value = "";
+  noteEl.value = "";
+  if(withToast) toast("Formular geleert.");
+}
+
+async function addEntry(){
+  const date = dateEl.value?.trim();
+  if(!date){ toast("Bitte Datum wählen."); return; }
+
+  const kwh = num(kwhEl.value);
+  if(kwh <= 0){ toast("Bitte kWh > 0 eingeben."); return; }
+
+  const pricePerKwh = num(pricePerKwhEl.value);
+  const fixedCost = num(fixedCostEl.value);
+
+  const entry = {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + "_" + Math.random().toString(16).slice(2),
+    date,
+    time: timeEl.value?.trim() || "",
+    provider: providerEl.value?.trim() || "",
+    chargerType: chargerTypeEl.value || "AC",
+    kwh,
+    pricePerKwh,
+    fixedCost,
+    cost: (kwh * pricePerKwh) + fixedCost,
+    odometer: odometerEl.value?.trim() || "",
+    kmSinceLast: kmSinceLastEl.value?.trim() || "",
+    soc: socEl.value?.trim() || "",
+    note: noteEl.value?.trim() || "",
+    createdAt: new Date().toISOString()
+  };
+
+  try{
+    await idbPut(entry);
+    await reloadEntries();
     clearForm(false);
     toast("Gespeichert ✅");
     render();
+  }catch(err){
+    console.error(err);
+    alert("Speichern fehlgeschlagen: " + (err?.message || err));
   }
+}
 
-  function clearForm(withToast=true){
-    timeEl.value = "";
-    providerEl.value = "";
-    chargerTypeEl.value = "AC";
-    kwhEl.value = "";
-    pricePerKwhEl.value = "";
-    fixedCostEl.value = "";
-    odometerEl.value = "";
-    kmSinceLastEl.value = "";
-    socEl.value = "";
-    noteEl.value = "";
-    if(withToast) toast("Formular geleert.");
-  }
-
-  function resetFilters(){
-    fromDateEl.value = "";
-    toDateEl.value = "";
-    providerFilterEl.value = "";
-    typeFilterEl.value = "";
-  }
-
-  function getFiltered(){
-    const from = fromDateEl.value ? new Date(fromDateEl.value + "T00:00:00") : null;
-    const to = toDateEl.value ? new Date(toDateEl.value + "T23:59:59") : null;
-    const p = providerFilterEl.value?.trim().toLowerCase() || "";
-    const t = typeFilterEl.value || "";
-
-    return entries.filter(e=>{
-      const d = new Date((e.date || "") + "T12:00:00");
-      if(from && d < from) return false;
-      if(to && d > to) return false;
-      if(t && e.chargerType !== t) return false;
-      if(p && String(e.provider||"").toLowerCase().indexOf(p) === -1) return false;
-      return true;
-    });
-  }
-
-  function consumptionPer100km(entry){
-    const km = n(entry.kmSinceLast);
-    const kwh = n(entry.kwh);
-    if(km > 0 && kwh > 0) return (kwh / km) * 100;
-    return null;
-  }
-
-  function render(){
-    const data = getFiltered();
-
-    // KPIs
-    const count = data.length;
-    const sumKwh = data.reduce((a,e)=> a + n(e.kwh), 0);
-    const sumCost = data.reduce((a,e)=> a + n(e.cost), 0);
-
-    const kwhForAvgPrice = data.reduce((a,e)=> a + (n(e.kwh) > 0 ? n(e.kwh) : 0), 0);
-    const avgPrice = kwhForAvgPrice > 0 ? (data.reduce((a,e)=> a + (n(e.kwh)*n(e.pricePerKwh)), 0) / kwhForAvgPrice) : null;
-
-    const prices = data.map(e=> n(e.pricePerKwh)).filter(x=> x>0);
-    const minP = prices.length ? Math.min(...prices) : null;
-    const maxP = prices.length ? Math.max(...prices) : null;
-
-    const avgKwh = count ? (sumKwh / count) : null;
-
-    const consVals = data.map(consumptionPer100km).filter(v=> v!==null);
-    const avgCons = consVals.length ? (consVals.reduce((a,v)=>a+v,0) / consVals.length) : null;
-
-    el("kpiCount").textContent = String(count);
-    el("kpiKwh").textContent = fmt(sumKwh, 2);
-    el("kpiCost").textContent = fmt(sumCost, 2);
-    el("kpiAvg").textContent = avgPrice===null ? "–" : fmt(avgPrice, 3);
-
-    el("kpiMin").textContent = minP===null ? "–" : fmt(minP, 3);
-    el("kpiMax").textContent = maxP===null ? "–" : fmt(maxP, 3);
-    el("kpiAvgKwh").textContent = avgKwh===null ? "–" : fmt(avgKwh, 2);
-    el("kpiCons").textContent = avgCons===null ? "–" : fmt(avgCons, 1);
-
-    // Rows
-    const tbody = el("rows");
-    tbody.innerHTML = "";
-    for(const e of data){
-      const tr = document.createElement("tr");
-      const cons = consumptionPer100km(e);
-
-      tr.innerHTML = `
-        <td>
-          <div>${escapeHtml(e.date || "")}${e.time ? " " + escapeHtml(e.time) : ""}</div>
-          <div class="small muted mono">${escapeHtml(shortId(e.id))}</div>
-        </td>
-        <td>${escapeHtml(e.provider || "")}</td>
-        <td><span class="pill ${e.chargerType==="AC" ? "ok" : ""}">${escapeHtml(e.chargerType || "")}</span></td>
-        <td class="right">${fmt(e.kwh, 2)}</td>
-        <td class="right">${e.pricePerKwh ? fmt(e.pricePerKwh, 3) : "–"}</td>
-        <td class="right">${e.fixedCost ? fmt(e.fixedCost, 2) : "–"}</td>
-        <td class="right">${fmt(e.cost, 2)}</td>
-        <td class="right">${e.kmSinceLast ? fmt(e.kmSinceLast, 1) : "–"}</td>
-        <td class="right">${cons===null ? "–" : fmt(cons, 1)}</td>
-        <td>${escapeHtml(e.note || "")}</td>
-        <td class="right">
-          <button data-act="edit" data-id="${e.id}">Bearbeiten</button>
-          <button class="danger" data-act="del" data-id="${e.id}">Löschen</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    }
-
-    tbody.querySelectorAll("button").forEach(btn=>{
-      btn.addEventListener("click", (ev)=>{
-        const id = ev.currentTarget.getAttribute("data-id");
-        const act = ev.currentTarget.getAttribute("data-act");
-        if(act==="del") delEntry(id);
-        if(act==="edit") editEntry(id);
-      });
-    });
-  }
-
-  function shortId(id){
-    if(!id) return "";
-    return String(id).slice(0,8);
-  }
-
-  function delEntry(id){
-    const idx = entries.findIndex(e=> e.id===id);
-    if(idx < 0) return;
-    const ok = confirm("Eintrag wirklich löschen?");
-    if(!ok) return;
-    entries.splice(idx,1);
-    saveEntries();
+async function delEntry(id){
+  const ok = confirm("Eintrag wirklich löschen?");
+  if(!ok) return;
+  try{
+    await idbDelete(id);
+    await reloadEntries();
     toast("Gelöscht.");
     render();
+  }catch(err){
+    console.error(err);
+    alert("Löschen fehlgeschlagen: " + (err?.message || err));
   }
+}
 
-  function editEntry(id){
-    const e = entries.find(x=> x.id===id);
-    if(!e) return;
+async function editEntry(id){
+  const e = entries.find(x=> x.id===id);
+  if(!e) return;
 
-    // Simple edit via prompt (schnell & robust). Wenn du willst, baue ich dir als nächsten Schritt ein schönes Edit-Modal.
-    const kwh = prompt("kWh geladen:", e.kwh);
-    if(kwh===null) return;
-    const ppk = prompt("Preis pro kWh (€):", e.pricePerKwh);
-    if(ppk===null) return;
-    const fix = prompt("Fixkosten (€):", e.fixedCost);
-    if(fix===null) return;
-    const provider = prompt("Anbieter / Ort:", e.provider);
-    if(provider===null) return;
-    const note = prompt("Notiz:", e.note || "");
-    if(note===null) return;
+  const kwh = prompt("kWh geladen:", e.kwh);
+  if(kwh===null) return;
+  const ppk = prompt("Preis pro kWh (€):", e.pricePerKwh);
+  if(ppk===null) return;
+  const fix = prompt("Fixkosten (€):", e.fixedCost);
+  if(fix===null) return;
+  const provider = prompt("Anbieter / Ort:", e.provider);
+  if(provider===null) return;
+  const note = prompt("Notiz:", e.note || "");
+  if(note===null) return;
 
-    e.kwh = n(kwh);
-    e.pricePerKwh = n(ppk);
-    e.fixedCost = n(fix);
-    e.provider = String(provider||"").trim();
-    e.note = String(note||"").trim();
-    e.cost = (n(e.kwh)*n(e.pricePerKwh)) + n(e.fixedCost);
+  e.kwh = num(kwh);
+  e.pricePerKwh = num(ppk);
+  e.fixedCost = num(fix);
+  e.provider = String(provider||"").trim();
+  e.note = String(note||"").trim();
+  e.cost = (num(e.kwh)*num(e.pricePerKwh)) + num(e.fixedCost);
 
-    saveEntries();
+  try{
+    await idbPut(e);
+    await reloadEntries();
     toast("Aktualisiert ✅");
     render();
+  }catch(err){
+    console.error(err);
+    alert("Update fehlgeschlagen: " + (err?.message || err));
+  }
+}
+
+function render(){
+  const data = getFiltered();
+
+  // KPIs
+  const count = data.length;
+  const sumKwh = data.reduce((a,e)=> a + num(e.kwh), 0);
+  const sumCost = data.reduce((a,e)=> a + num(e.cost), 0);
+
+  const kwhForAvgPrice = data.reduce((a,e)=> a + (num(e.kwh) > 0 ? num(e.kwh) : 0), 0);
+  const avgPrice = kwhForAvgPrice > 0 ? (data.reduce((a,e)=> a + (num(e.kwh)*num(e.pricePerKwh)), 0) / kwhForAvgPrice) : null;
+
+  const prices = data.map(e=> num(e.pricePerKwh)).filter(x=> x>0);
+  const minP = prices.length ? Math.min(...prices) : null;
+  const maxP = prices.length ? Math.max(...prices) : null;
+
+  const avgKwh = count ? (sumKwh / count) : null;
+
+  const consVals = data.map(consumptionPer100km).filter(v=> v!==null);
+  const avgCons = consVals.length ? (consVals.reduce((a,v)=>a+v,0) / consVals.length) : null;
+
+  el("kpiCount").textContent = String(count);
+  el("kpiKwh").textContent = fmt(sumKwh, 2);
+  el("kpiCost").textContent = fmt(sumCost, 2);
+  el("kpiAvg").textContent = avgPrice===null ? "–" : fmt(avgPrice, 3);
+
+  el("kpiMin").textContent = minP===null ? "–" : fmt(minP, 3);
+  el("kpiMax").textContent = maxP===null ? "–" : fmt(maxP, 3);
+  el("kpiAvgKwh").textContent = avgKwh===null ? "–" : fmt(avgKwh, 2);
+  el("kpiCons").textContent = avgCons===null ? "–" : fmt(avgCons, 1);
+
+  // Rows
+  const tbody = el("rows");
+  tbody.innerHTML = "";
+  for(const e of data){
+    const cons = consumptionPer100km(e);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div>${escapeHtml(e.date || "")}${e.time ? " " + escapeHtml(e.time) : ""}</div>
+        <div class="small mono">${escapeHtml(String(e.id||"").slice(0,8))}</div>
+      </td>
+      <td>${escapeHtml(e.provider || "")}</td>
+      <td><span class="pill ${e.chargerType==="AC" ? "ok" : ""}">${escapeHtml(e.chargerType || "")}</span></td>
+      <td class="right">${fmt(e.kwh, 2)}</td>
+      <td class="right">${e.pricePerKwh ? fmt(e.pricePerKwh, 3) : "–"}</td>
+      <td class="right">${e.fixedCost ? fmt(e.fixedCost, 2) : "–"}</td>
+      <td class="right">${fmt(e.cost, 2)}</td>
+      <td class="right">${e.kmSinceLast ? fmt(e.kmSinceLast, 1) : "–"}</td>
+      <td class="right">${cons===null ? "–" : fmt(cons, 1)}</td>
+      <td>${escapeHtml(e.note || "")}</td>
+      <td class="right">
+        <button data-act="edit" data-id="${escapeAttr(e.id)}">Bearbeiten</button>
+        <button class="danger" data-act="del" data-id="${escapeAttr(e.id)}">Löschen</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
   }
 
-  function exportCSV(){
-    const data = getFiltered();
-    if(!data.length){ toast("Keine Daten zum Export."); return; }
-
-    const headers = [
-      "date","time","provider","chargerType","kwh","pricePerKwh","fixedCost","cost","odometer","kmSinceLast","kwhPer100km","soc","note","createdAt","id"
-    ];
-
-    const rows = data.map(e=>{
-      const cons = consumptionPer100km(e);
-      const obj = {
-        date: e.date||"",
-        time: e.time||"",
-        provider: e.provider||"",
-        chargerType: e.chargerType||"",
-        kwh: numOrEmpty(e.kwh),
-        pricePerKwh: numOrEmpty(e.pricePerKwh),
-        fixedCost: numOrEmpty(e.fixedCost),
-        cost: numOrEmpty(e.cost),
-        odometer: e.odometer||"",
-        kmSinceLast: e.kmSinceLast||"",
-        kwhPer100km: cons===null ? "" : cons,
-        soc: e.soc||"",
-        note: e.note||"",
-        createdAt: e.createdAt||"",
-        id: e.id||""
-      };
-      return headers.map(h=> csvEscape(obj[h]));
+  tbody.querySelectorAll("button").forEach(btn=>{
+    btn.addEventListener("click", (ev)=>{
+      const id = ev.currentTarget.getAttribute("data-id");
+      const act = ev.currentTarget.getAttribute("data-act");
+      if(act==="del") delEntry(id);
+      if(act==="edit") editEntry(id);
     });
+  });
+}
 
-    const csv = [headers.join(";"), ...rows.map(r=> r.join(";"))].join("\n");
-    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
-    const filename = fileName("LadeLog", "csv");
-    downloadBlob(blob, filename);
-    toast("CSV exportiert.");
+/* ===========================
+   Export / Import
+   =========================== */
+
+function csvEscape(v){
+  const s = String(v ?? "");
+  // delimiter is ';'
+  if(/[;"\n\r]/.test(s)){
+    return `"${s.replace(/"/g,'""')}"`;
   }
+  return s;
+}
+function numOrEmpty(v){
+  const x = Number(v);
+  return Number.isFinite(x) ? x : "";
+}
+function fileName(base, ext){
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${base}_${yyyy}-${mm}-${dd}.${ext}`;
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 1000);
+}
 
-  function exportJSON(){
-    const payload = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      entries
+async function exportCSV(){
+  const data = getFiltered();
+  if(!data.length){ toast("Keine Daten zum Export."); return; }
+
+  const headers = [
+    "date","time","provider","chargerType","kwh","pricePerKwh","fixedCost","cost",
+    "odometer","kmSinceLast","kwhPer100km","soc","note","createdAt","id"
+  ];
+
+  const rows = data.map(e=>{
+    const cons = consumptionPer100km(e);
+    const obj = {
+      date: e.date||"",
+      time: e.time||"",
+      provider: e.provider||"",
+      chargerType: e.chargerType||"",
+      kwh: numOrEmpty(e.kwh),
+      pricePerKwh: numOrEmpty(e.pricePerKwh),
+      fixedCost: numOrEmpty(e.fixedCost),
+      cost: numOrEmpty(e.cost),
+      odometer: e.odometer||"",
+      kmSinceLast: e.kmSinceLast||"",
+      kwhPer100km: cons===null ? "" : cons,
+      soc: e.soc||"",
+      note: e.note||"",
+      createdAt: e.createdAt||"",
+      id: e.id||""
     };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
-    const filename = fileName("LadeLog-Sync", "json");
-    downloadBlob(blob, filename);
-    toast("JSON exportiert (für Sync).");
-  }
+    return headers.map(h=> csvEscape(obj[h]));
+  });
 
-  async function importJSON(ev){
-    const file = ev?.target?.files?.[0];
-    if(!file){ return; }
-    try{
-      const text = await file.text();
-      const obj = JSON.parse(text);
+  const csv = [headers.join(";"), ...rows.map(r=> r.join(";"))].join("\n");
+  const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+  downloadBlob(blob, fileName("LadeLog", "csv"));
+  toast("CSV exportiert.");
+}
 
-      // Accept either {entries:[...]} or plain array
-      let imported = [];
-      if(Array.isArray(obj)) imported = obj;
-      else if(obj && Array.isArray(obj.entries)) imported = obj.entries;
+async function exportJSON(){
+  const payload = {
+    version: 2,
+    storage: "indexeddb",
+    exportedAt: new Date().toISOString(),
+    entries
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type:"application/json"});
+  downloadBlob(blob, fileName("LadeLog-Backup", "json"));
+  toast("JSON exportiert.");
+}
 
-      if(!Array.isArray(imported)) throw new Error("Ungültiges Format.");
+async function importJSON(ev){
+  const file = ev?.target?.files?.[0];
+  if(!file) return;
 
-      // Merge by id (import wins)
-      const map = new Map(entries.map(e=> [e.id, e]));
-      for(const e of imported){
-        if(!e || !e.id) continue;
-        map.set(e.id, e);
-      }
-      entries = Array.from(map.values()).sort((a,b)=> (b.date||"").localeCompare(a.date||"") || (b.createdAt||"").localeCompare(a.createdAt||""));
-      saveEntries();
-      toast(`Import ok: ${imported.length} Einträge verarbeitet.`);
-      render();
-    }catch(err){
-      console.error(err);
-      alert("Import fehlgeschlagen: " + (err.message || err));
-    }finally{
-      ev.target.value = "";
+  try{
+    const text = await file.text();
+    const obj = JSON.parse(text);
+
+    let imported = [];
+    if(Array.isArray(obj)) imported = obj;
+    else if(obj && Array.isArray(obj.entries)) imported = obj.entries;
+
+    if(!Array.isArray(imported)) throw new Error("Ungültiges JSON-Format.");
+
+    // Merge by id: import wins
+    const map = new Map(entries.map(e=> [e.id, e]));
+    for(const e of imported){
+      if(!e || !e.id) continue;
+      // normalize key fields
+      const norm = {
+        id: e.id,
+        date: e.date || "",
+        time: e.time || "",
+        provider: e.provider || "",
+        chargerType: e.chargerType || "AC",
+        kwh: num(e.kwh),
+        pricePerKwh: num(e.pricePerKwh),
+        fixedCost: num(e.fixedCost),
+        cost: num(e.cost) || (num(e.kwh)*num(e.pricePerKwh) + num(e.fixedCost)),
+        odometer: e.odometer || "",
+        kmSinceLast: e.kmSinceLast || "",
+        soc: e.soc || "",
+        note: e.note || "",
+        createdAt: e.createdAt || new Date().toISOString()
+      };
+      map.set(e.id, norm);
     }
-  }
 
-  function downloadBlob(blob, filename){
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(()=> URL.revokeObjectURL(url), 1000);
-  }
+    const merged = Array.from(map.values()).sort((a,b)=>
+      (String(b.date||"").localeCompare(String(a.date||"")) ||
+       String(b.createdAt||"").localeCompare(String(a.createdAt||"")))
+    );
 
-  function fileName(base, ext){
-    const d = new Date();
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth()+1).padStart(2,"0");
-    const dd = String(d.getDate()).padStart(2,"0");
-    return `${base}_${yyyy}-${mm}-${dd}.${ext}`;
+    await idbReplaceAll(merged);
+    await reloadEntries();
+    toast(`Import ok: ${imported.length} Einträge verarbeitet.`);
+    render();
+  }catch(err){
+    console.error(err);
+    alert("Import fehlgeschlagen: " + (err?.message || err));
+  }finally{
+    ev.target.value = "";
   }
+}
 
-  function csvEscape(v){
-    const s = String(v ?? "");
-    // Use semicolon delimiter; still quote if needed
-    if(/[;"\n\r]/.test(s)){
-      return `"${s.replace(/"/g,'""')}"`;
-    }
-    return s;
-  }
-  function numOrEmpty(v){
-    const x = Number(v);
-    return Number.isFinite(x) && x!==0 ? x : (x===0 ? 0 : "");
-  }
-  function escapeHtml(str){
-    return String(str ?? "")
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;")
-      .replace(/'/g,"&#039;");
-  }
+/* ===========================
+   Helpers
+   =========================== */
+
+function escapeHtml(str){
+  return String(str ?? "")
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+}
+function escapeAttr(str){
+  return String(str ?? "").replace(/"/g, "&quot;");
+}
 </script>
 </body>
 </html>
